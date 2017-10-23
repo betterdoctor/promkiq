@@ -1,0 +1,21 @@
+PATH
+  remote: .
+  specs:
+    promkiq (0.1.0)
+      prometheus-client (= 0.7.1)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    prometheus-client (0.7.1)
+      quantile (~> 0.2.0)
+    quantile (0.2.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  promkiq!
+
+BUNDLED WITH
+   1.15.4
