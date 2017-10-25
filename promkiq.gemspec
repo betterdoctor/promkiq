@@ -18,4 +18,6 @@ Gem::Specification.new do |gem|
   gem.required_ruby_version = '>= 2.2.7'
 
   gem.add_dependency("prometheus-client", "0.7.1")
+
+  gem.add_development_dependency "rspec", "~> 3.4", ">= 3.4.0"
 end
