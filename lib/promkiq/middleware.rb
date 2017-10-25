@@ -13,8 +13,11 @@ module Promkiq
       @gateway = options[:gateway]
       @app = options[:app]
       @env = options[:env]
-
-      register_metrics
+      @metrics = {
+        jobs_completed_count: Prometheus::Client::Counter.new(:sidekiq_jobs_completed_count, "Sidekiq jobs completed"),
+        jobs_failed_count: Prometheus::Client::Counter.new(:sidekiq_jobs_failed_count, "Sidekiq jobs failed"),
+        jobs_completed_ms: Prometheus::Client::Gauge.new(:sidekiq_jobs_completed_ms, "milliseconds Sidekiq jobs completed in"),
+      }
     end
 
     def call(worker, msg, queue)
@@ -22,36 +25,28 @@ module Promkiq
       begin
         yield
       rescue
-        metrics[:jobs_failed_count].increment({app: app, env: env, worker: worker})
+        metrics[:jobs_failed_count].increment({app: app, env: env})
         raise
       end
-      metrics[:jobs_completed_ms].set({app: app, env: env, worker: worker}, (Time.now - start) * 1000.0)
-      metrics[:jobs_completed_count].increment({app: app, env: env, worker: worker})
+      metrics[:jobs_completed_ms].set({app: app, env: env}, (Time.now - start) * 1000.0)
+      metrics[:jobs_completed_count].increment({app: app, env: env})
       push_metrics(worker)
     end
 
     def client
-      @client ||= Prometheus::Client.registry
+      @client ||= begin
+        client = Prometheus::Client.registry
+        metrics.each do |_,metric|
+          client.register(metric)
+        end
+        client
+      end
     end
 
     private
 
-    def register_metrics
-      @metrics = {
-        jobs_completed_count: Prometheus::Client::Counter.new(:sidekiq_jobs_completed_count,
-                                                             "Sidekiq jobs completed"),
-        jobs_failed_count: Prometheus::Client::Counter.new(:sidekiq_jobs_failed_count,
-                                                          "Sidekiq jobs failed"),
-        jobs_completed_ms: Prometheus::Client::Gauge.new(:sidekiq_jobs_completed_ms,
-                                                        "milliseconds Sidekiq jobs completed in"),
-      }
-      @metrics.each do |_,metric|
-        client.register(metric)
-      end
-    end
-
     def push_metrics(worker)
-      @push ||= Prometheus::Client::Push.new("promkiq-#{app}-#{env}", worker.class.to_s, gateway)
+      @push ||= Prometheus::Client::Push.new("sidekiq-#{app}-#{env}", worker.class.to_s, gateway)
       @push.add(client)
     end
   end
