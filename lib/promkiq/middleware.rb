@@ -10,14 +10,17 @@ module Promkiq
       raise ArgumentError, "missing :app option" unless options[:app]
       raise ArgumentError, "missing :env option" unless options[:env]
 
-      @gateway = options[:gateway]
-      @app = options[:app]
-      @env = options[:env]
+      @gateway, @app, @env = options[:gateway], options[:app], options[:env]
+
       @metrics = {
         jobs_completed_count: Prometheus::Client::Counter.new(:sidekiq_jobs_completed_count, "Sidekiq jobs completed"),
         jobs_failed_count: Prometheus::Client::Counter.new(:sidekiq_jobs_failed_count, "Sidekiq jobs failed"),
         jobs_completed_ms: Prometheus::Client::Gauge.new(:sidekiq_jobs_completed_ms, "milliseconds Sidekiq jobs completed in"),
       }
+      @client = Prometheus::Client.registry
+      @metrics.each do |_,metric|
+        @client.register(metric)
+      end
     end
 
     def call(worker, msg, queue)
@@ -33,20 +36,10 @@ module Promkiq
       push_metrics(worker)
     end
 
-    def client
-      @client ||= begin
-        client = Prometheus::Client.registry
-        metrics.each do |_,metric|
-          client.register(metric)
-        end
-        client
-      end
-    end
-
     private
 
     def push_metrics(worker)
-      @push ||= Prometheus::Client::Push.new("sidekiq-#{app}-#{env}", worker.class.to_s, gateway)
+      @push = Prometheus::Client::Push.new("sidekiq-#{app}-#{env}", worker.class.to_s, gateway)
       @push.add(client)
     end
   end
