@@ -19,7 +19,10 @@ module Promkiq
       }
       @client = Prometheus::Client.registry
       @metrics.each do |_,metric|
-        @client.register(metric)
+        begin
+          @client.register(metric)
+        rescue Prometheus::Client::Registry::AlreadyRegisteredError
+        end
       end
     end
 
