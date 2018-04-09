@@ -34,7 +34,7 @@ module Promkiq
 
     def push_metrics(worker)
       @push = Prometheus::Client::Push.new("sidekiq-#{app}-#{env}", worker.class.to_s, gateway)
-      @push.add(client)
+      @push.replace(client)
     end
   end
 end
